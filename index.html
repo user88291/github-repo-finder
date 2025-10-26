@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>My GitHub Repos</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;margin:0;color:#111}
+    body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f7f7fb}
+    .card{width:100%;max-width:720px;background:#fff;padding:24px;border-radius:12px;box-shadow:0 6px 24px rgba(16,24,40,.08)}
+    header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+    img{width:64px;height:64px;border-radius:50%;object-fit:cover}
+    h1{font-size:1.25rem;margin:0}
+    p{margin:0;color:#555}
+    input{width:100%;padding:10px;border:1px solid #e3e7ee;border-radius:8px;margin-top:12px}
+    ul{list-style:none;padding:0;margin:18px 0 0}
+    li{padding:12px;border-radius:8px;border:1px solid #eef2f7;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+    a.repo{color:#0b69ff;text-decoration:none;font-weight:600}
+    .meta{color:#6b7280;font-size:.9rem}
+    .small{font-size:.85rem;color:#6b7280;margin-top:8px}
+    .loading{color:#666;padding:12px 0}
+    button{margin-left:8px;padding:8px 10px;border:none;background:#0b69ff;color:#fff;border-radius:8px;cursor:pointer}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <header>
+      <img id="avatar" alt="avatar" src="" />
+      <div>
+        <h1 id="title">GitHub Repositories</h1>
+        <p id="subtitle">Automatically lists public repositories for a GitHub user</p>
+      </div>
+    </header>
+
+    <!-- Change this username to your GitHub handle -->
+    <label class="small"><strong>user1:</strong></label>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input id="username" value="your-github-username" />
+      <button id="refresh">Refresh</button>
+    </div>
+
+    <p class="small">Tip: set this page as GitHub Pages or host the file anywhere static.</p>
+
+    <div id="status" class="loading">Enter a username and click Refresh</div>
+    <ul id="list" hidden></ul>
+  </main>
+
+  <script>
+    const usernameInput = document.getElementById('username');
+    const refreshBtn = document.getElementById('refresh');
+    const status = document.getElementById('status');
+    const list = document.getElementById('list');
+    const title = document.getElementById('title');
+    const avatar = document.getElementById('avatar');
+
+    async function fetchRepos(username) {
+      status.hidden = false;
+      list.hidden = true;
+      status.textContent = 'Loading…';
+      try {
+        const userRes = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}`);
+        if (!userRes.ok) throw new Error('User not found');
+        const user = await userRes.json();
+        avatar.src = user.avatar_url || '';
+        title.textContent = user.name || user.login || 'GitHub Repositories';
+
+        // get repos (first 100)
+        const res = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}/repos?per_page=100&sort=updated`);
+        if (!res.ok) throw new Error('Failed to fetch repos');
+        const repos = await res.json();
+        if (!Array.isArray(repos) || repos.length === 0) {
+          status.textContent = 'No public repositories found.';
+          return;
+        }
+
+        // Build list
+        list.innerHTML = '';
+        repos.forEach(r => {
+          const li = document.createElement('li');
+          const a = document.createElement('a');
+          a.className = 'repo';
+          a.href = r.html_url;
+          a.target = '_blank';
+          a.rel = 'noopener';
+          a.textContent = r.name;
+          const meta = document.createElement('div');
+          meta.className = 'meta';
+          meta.textContent = `${r.stargazers_count} ★ · ${r.fork ? 'Fork' : 'Repo'}`;
+          li.appendChild(a);
+          li.appendChild(meta);
+          list.appendChild(li);
+        });
+
+        status.hidden = true;
+        list.hidden = false;
+      } catch (err) {
+        status.textContent = err.message || 'Error';
+        list.hidden = true;
+      }
+    }
+
+    // Load on button click or Enter
+    refreshBtn.addEventListener('click', () => fetchRepos(usernameInput.value.trim()));
+    usernameInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') fetchRepos(usernameInput.value.trim());
+    });
+
+    // Optionally auto-load the default username on page open:
+    // fetchRepos(usernameInput.value.trim());
+  </script>
+</body>
+</html>
